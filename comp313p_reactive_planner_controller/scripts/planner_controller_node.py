@@ -30,6 +30,7 @@ from comp313p_reactive_planner_controller.a_star_planner import AStarPlanner
 from comp313p_reactive_planner_controller.fifo_planner import FIFOPlanner
 
 from comp313p_reactive_planner_controller.move2goal_controller import Move2GoalController
+from comp313p_reactive_planner_controller.lowlevelcontroller import LowLevelController
 
 # This class is the main node and orchestrates everything else
 
@@ -87,6 +88,7 @@ class PlannerControllerNode(object):
         
     def createRobotController(self):
         self.robotController = Move2GoalController(self.occupancyGrid)
+	    #self.robotController = LowLevelController(self.occupancyGrid)
 
     def createPlannerController(self):
         if rospy.get_param('use_reactive_planner_controller', False) is True:

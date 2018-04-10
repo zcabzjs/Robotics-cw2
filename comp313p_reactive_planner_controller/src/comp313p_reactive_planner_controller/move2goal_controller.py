@@ -8,7 +8,11 @@ from comp313p_reactive_planner_controller.controller_base import ControllerBase
 from comp313p_mapper.srv import *
 import math
 import angles
+import time
 
+totalDistance = 0
+totalAngleTurned = 0
+totalTime = 0
 # This sample controller works a fairly simple way. It figures out
 # where the goal is. It first turns the robot until it's roughly in
 # the correct direction and then keeps driving. It monitors the
@@ -56,7 +60,12 @@ class Move2GoalController(ControllerBase):
         dY = waypoint[1] - self.pose.y
         distanceError = sqrt(dX * dX + dY * dY)
         angleError = self.shortestAngularDistance(self.pose.theta, atan2(dY, dX))
-       
+        t0 = time.time()
+        currentX = self.pose.x
+        currentY = self.pose.y
+        currentTheta = self.pose.theta
+        waypointDist = 0
+        angleTurned = 0
         while (distanceError >= self.distanceErrorTolerance) & (not self.abortCurrentGoal) & (not rospy.is_shutdown()):
             #print("Current Pose: x: {}, y:{} , theta: {}\nGoal: x: {}, y: {}\n".format(self.pose.x, self.pose.y,
             #                                                                           self.pose.theta, waypoint[0],
@@ -75,7 +84,7 @@ class Move2GoalController(ControllerBase):
             vel_msg.angular.y = 0
             vel_msg.angular.z = max(-5.0, min(self.angleErrorGain * angleError, 5.0))
 
-
+		
             #print("Linear Velocity: {}\nAngular Velocity: {}\n\n".format(vel_msg.linear.x, math.degrees(vel_msg.angular.z)))
 
             # Toggle switching the mapping on and off, depending on
@@ -103,6 +112,16 @@ class Move2GoalController(ControllerBase):
             #    if self.checkIfWaypointIsReachable(waypoint) is False:
             #        return False
             #    self.occupancyGridHasChanged = False
+	    
+	        # Recording distances and angles
+            waypointDist += sqrt(pow((self.pose.x - currentX), 2) + pow((self.pose.y - currentY), 2))
+            currentX = self.pose.x
+            currentY = self.pose.y
+            newTheta = self.pose.theta
+            angleDiff = (newTheta - currentTheta) * 180 / math.pi
+            angleDiff = ((angleDiff + 180) % 360) - 180	
+            angleTurned += math.fabs(angleDiff)
+            currentTheta = newTheta
 
             distanceError = sqrt(pow((waypoint[0] - self.pose.x), 2) + pow((waypoint[1] - self.pose.y), 2))
             angleError = self.shortestAngularDistance(self.pose.theta,
@@ -110,7 +129,16 @@ class Move2GoalController(ControllerBase):
 
         # Stopping our robot after the movement is over
         self.stopRobot()
-
+        global totalTime
+        t1 = time.time()
+        timeTaken = t1 - t0
+        totalTime += timeTaken
+        global totalDistance
+        global totalAngleTurned
+        totalAngleTurned += angleTurned
+        angleTurned = 0
+        totalDistance += waypointDist
+        waypointDist = 0
         return (not self.abortCurrentGoal) & (not rospy.is_shutdown())
 
     def rotateToGoalOrientation(self, goalOrientation):
@@ -119,7 +147,8 @@ class Move2GoalController(ControllerBase):
         goalOrientation = math.radians(goalOrientation)
 
         angleError = self.shortestAngularDistance(self.pose.theta, goalOrientation)
-
+        t0 = time.time()
+        currentAngle = self.pose.theta
         if self.enableSettingMapperState is True:
             self.mappingState = False
             self.changeMapperStateService(False)
@@ -143,7 +172,21 @@ class Move2GoalController(ControllerBase):
 
         # Stop movement once finished
         self.stopRobot()
-
+        t1 = time.time()
+        timeTaken = t1-t0
+        global totalTime
+        global totalDistance
+        global totalAngleTurned
+        angleDiff = (currentAngle - self.pose.theta) * 180 / math.pi
+        angleDiff = ((angleDiff + 180) % 360) - 180
+        totalAngleTurned += math.fabs(angleDiff)
+        totalTime += timeTaken
+        print("Time taken " + str(totalTime))
+        print("Distance travelled " + str(totalDistance))
+        print("Angles turned " + str(totalAngleTurned))
+        totalTime = 0
+        totalDistance = 0
+        totalAngleTurned = 0
         if self.enableSettingMapperState is True:
             self.mappingState = True
             self.changeMapperStateService(True)
