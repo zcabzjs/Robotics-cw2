@@ -34,11 +34,16 @@ class ReactivePlannerController(PlannerControllerBase):
         # This methods needs to check if the current path, whose
         # waypoints are in self.currentPlannedPath, can still be
         # traversed
+        for waypoint in self.currentPlannedPath.waypoints:
+            if(self.occupancyGrid.getCell(waypoint.coords[0], waypoint.coords[1]) == 1):
+                self.controller.stopDrivingToCurrentGoal()
+                break
+        
                 
         # If the route is not viable any more, call
         # self.controller.stopDrivingToCurrentGoal()
 
-        pass
+        
     
     def driveToGoal(self, goal):
 
