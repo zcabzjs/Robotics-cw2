@@ -1,6 +1,7 @@
 import rospy
 import threading
 import math
+import time
 
 from comp313p_mapper.msg import *
 from comp313p_mapper.srv import *
@@ -8,7 +9,12 @@ from comp313p_reactive_planner_controller.srv import *
 from comp313p_reactive_planner_controller.occupancy_grid import OccupancyGrid
 from comp313p_reactive_planner_controller.grid_drawer import OccupancyGridDrawer
 from geometry_msgs.msg  import Twist
+from std_msgs.msg import String
 
+totalDistance = 0
+totalAngleTurned = 0
+totalNumberOfWaypoints = 0
+totalTime = 0
 class ExplorerNodeBase(object):
 
     def __init__(self):
@@ -28,6 +34,9 @@ class ExplorerNodeBase(object):
         self.mapUpdateSubscriber = rospy.Subscriber('updated_map', MapUpdate, self.mapUpdateCallback)
         self.noMapReceived = True
 
+        # DELETE THIS IF NECESSARY
+        rospy.Subscriber('details', String, self.updateDetails)
+
         # Clear the map variables
         self.occupancyGrid = None
         self.deltaOccupancyGrid = None
@@ -46,13 +55,29 @@ class ExplorerNodeBase(object):
         rospy.wait_for_service('request_map_update')
         mapRequestService = rospy.ServiceProxy('request_map_update', RequestMapUpdate)
         mapUpdate = mapRequestService(True)
+    
+        #DELETE THIS IF TIME DOESNT WORK
+        global totalTime
+        totalTime = time.time()
 
         while mapUpdate.initialMapUpdate.isPriorMap is True:
             self.kickstartSimulator()
             mapUpdate = mapRequestService(True)
             
         self.mapUpdateCallback(mapUpdate.initialMapUpdate)
+
+    #Parsing message from details node
+    def updateDetails(self, msg):
+        totalDetailsString = str(msg.data)
+        totalDetails = totalDetailsString.split(',')
+        global totalAngleTurned
+        global totalDistance
+        global totalNumberOfWaypoints
+        totalAngleTurned += float(totalDetails[0])
+        totalDistance += float(totalDetails[1])
+        totalNumberOfWaypoints += int(totalDetails[2])
         
+
     def mapUpdateCallback(self, msg):
         rospy.loginfo("map update received")
         
@@ -197,6 +222,13 @@ class ExplorerNodeBase(object):
                     attempt = self.explorer.sendGoalToRobot(newDestinationInWorldCoordinates)
                     self.explorer.destinationReached(newDestination, attempt)
                 else:
+                    print("Total angle turned: " + str(totalAngleTurned))
+                    print("Total distance travelled: " + str(totalDistance))
+                    print("Total number of waypoints travelled: " + str(totalNumberOfWaypoints))
+                    global totalTime
+                    endTime = time.time()
+                    totalTime = endTime - totalTime
+                    print("Total time taken for full mapping: " + str(totalTime))
                     self.completed = True
                     
        

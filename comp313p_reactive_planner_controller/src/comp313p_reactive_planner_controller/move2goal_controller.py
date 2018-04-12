@@ -2,6 +2,7 @@
 import rospy
 from geometry_msgs.msg  import Twist
 from geometry_msgs.msg  import Pose
+from std_msgs.msg import String
 from math import pow,atan2,sqrt
 from comp313p_reactive_planner_controller.planned_path import PlannedPath
 from comp313p_reactive_planner_controller.controller_base import ControllerBase
@@ -13,6 +14,7 @@ import time
 totalDistance = 0
 totalAngleTurned = 0
 totalTime = 0
+totalWaypoints = 0
 # This sample controller works a fairly simple way. It figures out
 # where the goal is. It first turns the robot until it's roughly in
 # the correct direction and then keeps driving. It monitors the
@@ -28,6 +30,9 @@ class Move2GoalController(ControllerBase):
         self.angleErrorGain = rospy.get_param('angle_error_gain', 4)
         self.driveAngleErrorTolerance = math.radians(rospy.get_param('angle_error_tolerance', 1))
 
+        # DELETE THIS IF NECESSARY ()
+        self.detailPublisher = rospy.Publisher('details', String, queue_size=10)
+        
 
         # Flag to toggle the mapper state
         self.enableSettingMapperState = rospy.get_param('enable_change_mapper_state', True)
@@ -135,10 +140,12 @@ class Move2GoalController(ControllerBase):
         totalTime += timeTaken
         global totalDistance
         global totalAngleTurned
+        global totalWaypoints
         totalAngleTurned += angleTurned
         angleTurned = 0
         totalDistance += waypointDist
         waypointDist = 0
+        totalWaypoints += 1
         return (not self.abortCurrentGoal) & (not rospy.is_shutdown())
 
     def rotateToGoalOrientation(self, goalOrientation):
@@ -177,16 +184,26 @@ class Move2GoalController(ControllerBase):
         global totalTime
         global totalDistance
         global totalAngleTurned
+        global totalWaypoints
         angleDiff = (currentAngle - self.pose.theta) * 180 / math.pi
         angleDiff = ((angleDiff + 180) % 360) - 180
         totalAngleTurned += math.fabs(angleDiff)
         totalTime += timeTaken
-        print("Time taken " + str(totalTime))
-        print("Distance travelled " + str(totalDistance))
-        print("Angles turned " + str(totalAngleTurned))
+
+        #DELETE THIS IF NECESSARY
+        totalDetails = str(totalAngleTurned) + ',' + str(totalDistance) + ',' + str(totalWaypoints)
+        self.detailPublisher.publish(totalDetails)
+
+        #print("Time taken " + str(totalTime))
+        #print("Distance travelled " + str(totalDistance))
+        #print("Angles turned " + str(totalAngleTurned))
         totalTime = 0
         totalDistance = 0
         totalAngleTurned = 0
+        totalWaypoints = 0
+
+        
+
         if self.enableSettingMapperState is True:
             self.mappingState = True
             self.changeMapperStateService(True)

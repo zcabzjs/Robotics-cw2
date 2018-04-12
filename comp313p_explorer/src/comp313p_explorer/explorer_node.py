@@ -29,10 +29,8 @@ class ExplorerNode(ExplorerNodeBase):
                     coordinate = (x, y)
                     #IF IT EXPLODES!!!!
                     #UNCOMMENT THIS
-                    #self.frontierList.append(coordinate)
+                    self.frontierList.append(coordinate)
                     # AND COMMENT THE IF BLOCK BELOW!!!
-                    if coordinate not in self.blackList:
-                        self.frontierList.append(coordinate)
         #print(self.frontierList)
         return (len(self.frontierList) != 0) 
 
@@ -67,7 +65,7 @@ class ExplorerNode(ExplorerNodeBase):
                 diffY = abs(self.current[1] - self.frontierList[k][1])
                 distance = max(diffX, diffY) + (sqrt(2) - 1)*min(diffX, diffY)
                 #distance = sqrt(pow((self.current[0] - self.frontierList[k][0]), 2) + pow((self.current[1] - self.frontierList[k][1]), 2))
-                if distance < minimum:
+                if distance < minimum and distance > 8:  #Works with 10
                     resultCoord = self.frontierList[k]
                     minimum = distance
             
